@@ -115,7 +115,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         setState({ phase: 'anonymous' })
         return
       }
-      setTimeout(() => {
+      setTimeout(async () => {
+        // Salva o provider_token enquanto ainda existe (some após o refresh).
+        if (session.provider_token) {
+          await supabase
+            .from('users')
+            .update({ github_token: session.provider_token })
+            .eq('id', session.user.id)
+        }
         resolveStateForUser(session.user).then(setState)
       }, 0)
     })

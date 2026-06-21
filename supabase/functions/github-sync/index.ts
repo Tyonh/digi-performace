@@ -1,13 +1,19 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-// Regras de XP por commits (por repo/dia):
-//   5 XP por commit, máximo de 25 XP por repo por dia.
-// Limite diário total: sem cap global — incentiva contribuição em múltiplos repos.
 const XP_PER_COMMIT = 5
 const XP_CAP_PER_REPO = 25
 
+const CORS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+}
+
 serve(async (req) => {
+  // Preflight CORS — o browser manda OPTIONS antes do POST real.
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
+
   // ── 1. Autenticar o usuário pelo JWT do Supabase ──────────────────────────
   const jwt = req.headers.get('Authorization')?.replace('Bearer ', '')
   if (!jwt) return json({ error: 'Unauthorized' }, 401)
@@ -127,6 +133,6 @@ interface GithubEvent {
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { 'Content-Type': 'application/json' },
+    headers: { ...CORS, 'Content-Type': 'application/json' },
   })
 }

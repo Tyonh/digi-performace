@@ -5,16 +5,25 @@ export interface GithubSyncResult {
   activitiesSynced: number
 }
 
-// Dispara o sync de commits do GitHub → XP. Passa o provider_token da sessão
-// atual para a Edge Function autenticar com a API do GitHub.
-// Retorna silenciosamente se não houver token (sessão expirou ou foi renovada
-// sem o provider_token — o usuário precisa fazer login de novo para reativar).
 export async function syncGithubActivity(): Promise<GithubSyncResult> {
   const { data: { session } } = await supabase.auth.getSession()
-  if (!session?.provider_token) return { xpEarned: 0, activitiesSynced: 0 }
+  if (!session) return { xpEarned: 0, activitiesSynced: 0 }
+
+  // provider_token só existe logo após o login — lemos do banco como fallback.
+  let githubToken = session.provider_token ?? null
+  if (!githubToken) {
+    const { data: profile } = await supabase
+      .from('users')
+      .select('github_token')
+      .eq('id', session.user.id)
+      .single()
+    githubToken = (profile?.github_token as string | null) ?? null
+  }
+
+  if (!githubToken) return { xpEarned: 0, activitiesSynced: 0 }
 
   const { data, error } = await supabase.functions.invoke('github-sync', {
-    body: { githubToken: session.provider_token },
+    body: { githubToken },
   })
 
   if (error) {
