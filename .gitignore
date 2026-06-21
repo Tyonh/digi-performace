@@ -1,0 +1,14 @@
+# env
+.env
+.env.local
+.env*.local
+
+# deps
+node_modules/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Supabase CLI
+supabase/.temp/
