@@ -14,8 +14,11 @@ serve(async (req) => {
   // Preflight CORS — o browser manda OPTIONS antes do POST real.
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
 
+  console.log('[github-sync] método:', req.method)
+
   // ── 1. Autenticar o usuário pelo JWT do Supabase ──────────────────────────
   const jwt = req.headers.get('Authorization')?.replace('Bearer ', '')
+  console.log('[github-sync] tem jwt:', !!jwt)
   if (!jwt) return json({ error: 'Unauthorized' }, 401)
 
   // Service role: ignora RLS para poder escrever em qualquer linha do banco.
@@ -25,11 +28,13 @@ serve(async (req) => {
   )
 
   const { data: { user }, error: authError } = await supabase.auth.getUser(jwt)
+  console.log('[github-sync] user:', user?.id ?? null, 'authError:', authError?.message ?? null)
   if (authError || !user) return json({ error: 'Unauthorized' }, 401)
 
   // ── 2. Pegar o token do GitHub do corpo da requisição ────────────────────
   const body = await req.json().catch(() => ({}))
   const githubToken: string | undefined = body.githubToken
+  console.log('[github-sync] tem githubToken:', !!githubToken)
   if (!githubToken) return json({ error: 'Missing githubToken' }, 400)
 
   // ── 3. Ler perfil e Digimon ativo do banco ───────────────────────────────
@@ -39,6 +44,7 @@ serve(async (req) => {
     .eq('id', user.id)
     .single()
 
+  console.log('[github-sync] github_handle:', profile?.github_handle ?? null)
   if (!profile?.github_handle) return json({ error: 'No GitHub handle' }, 400)
 
   const { data: digimon } = await supabase
@@ -50,6 +56,7 @@ serve(async (req) => {
     .limit(1)
     .maybeSingle()
 
+  console.log('[github-sync] digimon:', digimon?.id ?? null)
   if (!digimon) return json({ error: 'No active Digimon' }, 400)
 
   // ── 4. Buscar eventos do GitHub (últimos 100) ────────────────────────────
@@ -63,6 +70,7 @@ serve(async (req) => {
       },
     },
   )
+  console.log('[github-sync] github api status:', ghRes.status)
   if (!ghRes.ok) return json({ error: `GitHub API: ${ghRes.status}` }, 502)
 
   const events: GithubEvent[] = await ghRes.json()
@@ -77,7 +85,7 @@ serve(async (req) => {
     if (event.type !== 'PushEvent') continue
     const periodDate = event.created_at.slice(0, 10) // YYYY-MM-DD
     const key = `${periodDate}:${event.repo.name}`
-    const commits = event.payload.commits?.length ?? 0
+    const commits = event.payload.size ?? event.payload.commits?.length ?? 1
     const existing = map.get(key)
     if (existing) {
       existing.commitCount += commits
@@ -119,6 +127,7 @@ serve(async (req) => {
     }
   }
 
+  console.log('[github-sync] concluído — totalXp:', totalXp, 'atividades:', map.size)
   return json({ ok: true, totalXp, activitiesSynced: map.size })
 })
 
@@ -127,7 +136,7 @@ interface GithubEvent {
   type: string
   created_at: string
   repo: { name: string }
-  payload: { commits?: unknown[] }
+  payload: { commits?: unknown[]; size?: number; distinct_size?: number }
 }
 
 function json(body: unknown, status = 200): Response {
