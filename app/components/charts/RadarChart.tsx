@@ -7,10 +7,14 @@ interface Props {
 }
 
 export function RadarChart({ dimensions, size = 240 }: Props) {
+  // pad: folga ao redor do gráfico para os rótulos dos eixos não serem cortados.
+  // O viewBox é maior que o canvas, então texto que "sai" do gráfico continua
+  // visível (o conteúdo é escalado para caber na largura `size`).
+  const pad = 56
   const cx = size / 2
   const cy = size / 2
-  const r = size * 0.36
-  const labelR = size * 0.48
+  const r = size * 0.34
+  const labelR = size * 0.44
   const n = dimensions.length
 
   function polar(i: number, radius: number): [number, number] {
@@ -27,7 +31,11 @@ export function RadarChart({ dimensions, size = 240 }: Props) {
     .join(' ')
 
   return (
-    <Svg width={size} height={size}>
+    <Svg
+      width={size}
+      height={size}
+      viewBox={`${-pad} ${-pad} ${size + pad * 2} ${size + pad * 2}`}
+    >
       {/* Grade — 3 anéis */}
       {[0.33, 0.66, 1].map((ratio) => (
         <Polygon
@@ -69,8 +77,9 @@ export function RadarChart({ dimensions, size = 240 }: Props) {
             key={i}
             x={x}
             y={y + 4}
-            fontSize={9}
-            fill="#94a3b8"
+            fontSize={11}
+            fontWeight="600"
+            fill="#cbd5e1"
             textAnchor={textAnchor}
           >
             {d.meta.label}

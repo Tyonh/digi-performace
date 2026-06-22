@@ -66,15 +66,11 @@ export default function DashboardScreen() {
         </View>
 
         <View style={styles.petGroup}>
-          {/* brilho suave atrás pra destacar do fundo */}
-          <View style={styles.petGlow} />
           <DigimonSprite
             species={activeDigimon.species}
             status={isEgg ? 'healthy' : live.status}
             size={120}
           />
-          {/* sombra no chão pra parecer apoiado */}
-          <View style={styles.groundShadow} />
         </View>
       </View>
 
@@ -155,20 +151,6 @@ const styles = StyleSheet.create({
   petGroup: {
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  petGlow: {
-    position: 'absolute',
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-    backgroundColor: 'rgba(180,200,255,0.12)',
-  },
-  groundShadow: {
-    width: 86,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: 'rgba(0,0,0,0.30)',
-    marginTop: -10,
   },
   statusBadge: {
     borderWidth: 1,
