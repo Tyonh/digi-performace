@@ -35,6 +35,7 @@ function RootNavigator() {
 
   const isAnonymous = state.phase === 'anonymous'
   const inOnboarding = state.phase === 'needs-consent' || state.phase === 'needs-digimon'
+  const isHatching = state.phase === 'needs-hatch-choice'
   const isReady = state.phase === 'ready'
 
   return (
@@ -45,6 +46,10 @@ function RootNavigator() {
 
       <Stack.Protected guard={inOnboarding}>
         <Stack.Screen name="(onboarding)" />
+      </Stack.Protected>
+
+      <Stack.Protected guard={isHatching}>
+        <Stack.Screen name="hatch" />
       </Stack.Protected>
 
       <Stack.Protected guard={isReady}>

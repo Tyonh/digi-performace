@@ -11,13 +11,21 @@ export type EvolutionStage =
 
 export const EGG_STAGES: DigimonSpecies[] = ['egg1', 'egg2']
 
+// XP em que o ovo evolui de egg1 → egg2 e em que ele CHOCA (egg2 → bebê).
+// São iguais em todas as linhas (o ovo é compartilhado), por isso ficam aqui
+// como constantes — e é em HATCH_XP que a tela de escolha do inicial aparece.
+export const EGG2_XP = 30
+export const HATCH_XP = 80
+
 export interface EvolutionLine {
   id: string
+  name: string // nome reconhecível da linha (forma rookie), ex: 'Agumon'
   stages: { stage: EvolutionStage; species: DigimonSpecies; minXp: number }[]
 }
 
 export const AGUMON_LINE: EvolutionLine = {
   id: 'agumon-line',
+  name: 'Agumon',
   stages: [
     { stage: 'egg',         species: 'egg2',        minXp: 30   },
     { stage: 'baby',        species: 'botamon',     minXp: 80   },
@@ -31,6 +39,7 @@ export const AGUMON_LINE: EvolutionLine = {
 
 export const GABUMON_LINE: EvolutionLine = {
   id: 'gabumon-line',
+  name: 'Gabumon',
   stages: [
     { stage: 'egg',         species: 'egg2',          minXp: 30   },
     { stage: 'baby',        species: 'punimon',        minXp: 80   },
@@ -44,6 +53,7 @@ export const GABUMON_LINE: EvolutionLine = {
 
 export const PATAMON_LINE: EvolutionLine = {
   id: 'patamon-line',
+  name: 'Patamon',
   stages: [
     { stage: 'egg',         species: 'egg2',        minXp: 30   },
     { stage: 'baby',        species: 'poyomon',     minXp: 80   },
@@ -57,6 +67,7 @@ export const PATAMON_LINE: EvolutionLine = {
 
 export const TENTOMON_LINE: EvolutionLine = {
   id: 'tentomon-line',
+  name: 'Tentomon',
   stages: [
     { stage: 'egg',         species: 'egg2',                minXp: 30   },
     { stage: 'baby',        species: 'pabumon',             minXp: 80   },
@@ -70,6 +81,7 @@ export const TENTOMON_LINE: EvolutionLine = {
 
 export const PALMON_LINE: EvolutionLine = {
   id: 'palmon-line',
+  name: 'Palmon',
   stages: [
     { stage: 'egg',         species: 'egg2',    minXp: 30   },
     { stage: 'baby',        species: 'yuramon', minXp: 80   },
@@ -83,6 +95,7 @@ export const PALMON_LINE: EvolutionLine = {
 
 export const GOMAMON_LINE: EvolutionLine = {
   id: 'gomamon-line',
+  name: 'Gomamon',
   stages: [
     { stage: 'egg',         species: 'egg2',      minXp: 30   },
     { stage: 'baby',        species: 'pichimon',  minXp: 80   },
@@ -96,6 +109,7 @@ export const GOMAMON_LINE: EvolutionLine = {
 
 export const BIYOMON_LINE: EvolutionLine = {
   id: 'biyomon-line',
+  name: 'Biyomon',
   stages: [
     { stage: 'egg',         species: 'egg2',      minXp: 30   },
     { stage: 'baby',        species: 'nyokimon',  minXp: 80   },
@@ -109,6 +123,7 @@ export const BIYOMON_LINE: EvolutionLine = {
 
 export const SALAMON_LINE: EvolutionLine = {
   id: 'salamon-line',
+  name: 'Salamon',
   stages: [
     { stage: 'egg',         species: 'egg2',       minXp: 30   },
     { stage: 'baby',        species: 'zurumon',    minXp: 80   },
@@ -122,6 +137,7 @@ export const SALAMON_LINE: EvolutionLine = {
 
 export const GUILMON_LINE: EvolutionLine = {
   id: 'guilmon-line',
+  name: 'Guilmon',
   stages: [
     { stage: 'egg',         species: 'egg2',       minXp: 30   },
     { stage: 'baby',        species: 'jyarimon',   minXp: 80   },
@@ -151,4 +167,32 @@ export function resolveSpeciesForXp(line: EvolutionLine, xp: number): DigimonSpe
   const reached = line.stages.filter((s) => xp >= s.minXp)
   if (reached.length === 0) return null   // ainda egg1
   return reached[reached.length - 1].species
+}
+
+// Espécie do OVO pelo XP, sem depender de linha (o ovo é compartilhado).
+// Usada enquanto o Digimon ainda não tem linha escolhida (pré-choco).
+export function resolveEggSpecies(xp: number): 'egg1' | 'egg2' {
+  return xp >= EGG2_XP ? 'egg2' : 'egg1'
+}
+
+// A forma bebê de uma linha (o que aparece logo após o choco).
+export function babySpeciesOf(line: EvolutionLine): DigimonSpecies {
+  const baby = line.stages.find((s) => s.stage === 'baby')
+  return baby ? baby.species : line.stages[0].species
+}
+
+// Uma opção na tela de escolha do inicial: o sprite bebê a mostrar + o nome
+// reconhecível da linha (forma rookie) para o jogador saber no que vai virar.
+export interface StarterOption {
+  lineId: string
+  name: string
+  baby: DigimonSpecies
+}
+
+export function listStarterOptions(): StarterOption[] {
+  return Object.values(EVOLUTION_LINES).map((line) => ({
+    lineId: line.id,
+    name: line.name,
+    baby: babySpeciesOf(line),
+  }))
 }

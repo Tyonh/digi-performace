@@ -9,6 +9,8 @@ export type OnboardingState =
   | { phase: 'anonymous' } //        sem sessão → precisa logar
   | { phase: 'needs-consent'; user: SessionUser } //   logou, falta aceitar LGPD
   | { phase: 'needs-digimon'; user: SessionUser } //   consentiu, falta criar o pet
+  // ovo chegou ao XP de choco mas o jogador ainda não escolheu a linha inicial
+  | { phase: 'needs-hatch-choice'; user: SessionUser; activeDigimon: ActiveDigimon }
   | { phase: 'ready'; user: SessionUser; activeDigimon: ActiveDigimon } // tudo pronto
 
 // Quem é o dono. Vem do GitHub (login OAuth).
@@ -47,6 +49,8 @@ export interface SessionContextValue {
   // lineId opcional: se vier (futura tela de "escolha seu inicial"), usa essa
   // linha; se não, o sistema de starter sorteia. Ver domain/digimon/starter.ts.
   createDigimon: (name: string, lineId?: string) => Promise<void>
+  // Define a linha evolutiva no momento do choco (tela de escolha do inicial).
+  chooseStarterLine: (lineId: string) => Promise<void>
   signOut: () => Promise<void>
   // Recalcula o estado a partir do banco (ex: após um check-in mudar o Digimon).
   refresh: () => Promise<void>

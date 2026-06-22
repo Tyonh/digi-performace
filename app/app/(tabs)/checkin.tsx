@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native'
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Platform } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useSession } from '@/lib/session/SessionProvider'
 import { PseStepper } from '@/components/checkin/PseStepper'
@@ -172,11 +172,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 8,
-    shadowColor: '#0ea5e9',
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 6,
+    ...Platform.select({
+      web: { boxShadow: '0 4px 12px rgba(14,165,233,0.4)' },
+      default: {
+        shadowColor: '#0ea5e9',
+        shadowOpacity: 0.4,
+        shadowRadius: 12,
+        shadowOffset: { width: 0, height: 4 },
+        elevation: 6,
+      },
+    }),
   },
   buttonDisabled: { opacity: 0.5 },
   buttonText: { color: '#f0f9ff', fontSize: 16, fontWeight: '700' },

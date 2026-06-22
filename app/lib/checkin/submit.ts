@@ -2,8 +2,7 @@ import { supabase } from '@/lib/supabase/client'
 import { localDateString } from '@/lib/date'
 import { calculateWellbeingIndex, wellbeingToHealth } from '@/domain/checkin/wellbeing'
 import { resolveStatus } from '@/domain/digimon/state'
-import { EVOLUTION_LINES, resolveSpeciesForXp } from '@/domain/digimon/evolution'
-import { pickStarterLineId } from '@/domain/digimon/starter'
+import { EVOLUTION_LINES, resolveSpeciesForXp, resolveEggSpecies } from '@/domain/digimon/evolution'
 import type { PseResponses } from '@/domain/checkin/types'
 import type { ActiveDigimon } from '@/lib/session/types'
 
@@ -80,11 +79,14 @@ export async function submitCheckin(
     .select('evolution_line_id')
     .eq('id', digimon.id)
     .single()
-  const lineId = (dig?.evolution_line_id as string) ?? pickStarterLineId()
-  const line = EVOLUTION_LINES[lineId]
-  // null = XP < 30, mantém egg1; caso contrário usa a espécie resolvida
-  const resolved = line ? resolveSpeciesForXp(line, totalXp) : null
-  const species = resolved ?? 'egg1'
+  const lineId = (dig?.evolution_line_id as string | null) ?? null
+  const line = lineId ? EVOLUTION_LINES[lineId] : null
+
+  // Sem linha escolhida → o Digimon ainda é OVO. A espécie é só a fase do ovo
+  // (egg1/egg2) pelo XP; ele TRAVA em egg2 mesmo cruzando HATCH_XP, porque é a
+  // tela de escolha do inicial (needs-hatch-choice) que vai chocá-lo. Com linha
+  // definida → segue a evolução normal da linha.
+  const species = line ? (resolveSpeciesForXp(line, totalXp) ?? 'egg1') : resolveEggSpecies(totalXp)
 
   await supabase
     .from('digimons')
@@ -92,7 +94,6 @@ export async function submitCheckin(
       health,
       status,
       species,
-      evolution_line_id: lineId,
       // alimentar + descansar + cuidar (lazy eval: base + timestamp)
       hunger_base: 100,
       hunger_updated_at: now,

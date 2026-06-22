@@ -5,7 +5,13 @@ import * as Linking from 'expo-linking'
 import Constants from 'expo-constants'
 import type { User } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase/client'
-import { pickStarterLineId } from '@/domain/digimon/starter'
+import {
+  EVOLUTION_LINES,
+  HATCH_XP,
+  babySpeciesOf,
+  resolveEggSpecies,
+  resolveSpeciesForXp,
+} from '@/domain/digimon/evolution'
 import type { DigimonSpecies, DigimonStatus } from '@/domain/shared/types'
 import type {
   ActiveDigimon,
@@ -62,7 +68,7 @@ async function resolveStateForUser(user: User): Promise<OnboardingState> {
   //    o hook useLiveDigimonStatus calcular fome/energia no cliente.
   const { data: digimon } = await supabase
     .from('digimons')
-    .select('id, name, species, status, health, is_sleeping, hunger_base, hunger_updated_at, hunger_decay_rate, energy_base, energy_updated_at, energy_decay_rate')
+    .select('id, name, species, status, health, is_sleeping, evolution_line_id, hunger_base, hunger_updated_at, hunger_decay_rate, energy_base, energy_updated_at, energy_decay_rate')
     .eq('user_id', user.id)
     .eq('is_alive', true)
     .order('slot', { ascending: true })
@@ -77,10 +83,19 @@ async function resolveStateForUser(user: User): Promise<OnboardingState> {
     .eq('digimon_id', digimon.id)
   const xp = (xpRows ?? []).reduce((sum, r) => sum + (r.amount as number), 0)
 
+  // Espécie é SEMPRE derivada do XP (fonte da verdade), nunca da coluna `species`
+  // — que fica defasada quando o XP vem de commits do GitHub (que não recalculam
+  // a forma). Sem linha → fase do ovo pelo XP; com linha → espécie da linha.
+  const lineId = digimon.evolution_line_id as string | null
+  const line = lineId ? EVOLUTION_LINES[lineId] : null
+  const species: DigimonSpecies = line
+    ? (resolveSpeciesForXp(line, xp) ?? 'egg1')
+    : resolveEggSpecies(xp)
+
   const activeDigimon: ActiveDigimon = {
     id: digimon.id,
     name: digimon.name,
-    species: digimon.species as DigimonSpecies,
+    species,
     level: levelFromXp(xp),
     xp,
     status: digimon.status as DigimonStatus,
@@ -92,6 +107,12 @@ async function resolveStateForUser(user: User): Promise<OnboardingState> {
     energyUpdatedAt: (digimon.energy_updated_at as string) ?? new Date().toISOString(),
     energyDecayRate: (digimon.energy_decay_rate as number) ?? 3,
     isSleeping: (digimon.is_sleeping as boolean) ?? false,
+  }
+
+  // Choco: o ovo chegou ao XP de eclosão mas ainda não tem linha escolhida →
+  // o jogador precisa escolher o inicial antes de virar bebê.
+  if (!lineId && xp >= HATCH_XP) {
+    return { phase: 'needs-hatch-choice', user: sessionUser, activeDigimon }
   }
   return { phase: 'ready', user: sessionUser, activeDigimon }
 }
@@ -196,16 +217,36 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     async function createDigimon(name: string, lineId?: string) {
       const { data } = await supabase.auth.getUser()
       if (!data.user) return
-      // Todo Digimon nasce do mesmo ovo (egg1), no slot 1. A LINHA evolutiva já
-      // é decidida aqui (sorteada, ou a escolhida se vier por parâmetro) e fica
-      // guardada — fica oculta na UI até o ovo chocar. Ver starter.ts.
+      // Todo Digimon nasce do mesmo ovo (egg1), no slot 1. A LINHA evolutiva
+      // NÃO é decidida aqui: fica null até o ovo chocar (HATCH_XP), quando o
+      // jogador escolhe o inicial na tela de choco. Ver chooseStarterLine.
+      // (lineId só vem preenchido em casos especiais, ex: seed/testes.)
       await supabase.from('digimons').insert({
         user_id: data.user.id,
         slot: 1,
         name: name.trim(),
         species: 'egg1',
-        evolution_line_id: lineId ?? pickStarterLineId(),
+        evolution_line_id: lineId ?? null,
       })
+      await refresh()
+    }
+
+    // Choco: grava a linha escolhida e resolve a espécie pelo XP atual (já vira
+    // a forma bebê na hora). Depois o refresh leva o estado de volta a 'ready'.
+    async function chooseStarterLine(lineId: string) {
+      const { data } = await supabase.auth.getUser()
+      if (!data.user) return
+      const current = state.phase === 'needs-hatch-choice' ? state.activeDigimon : null
+      if (!current) return
+
+      const line = EVOLUTION_LINES[lineId]
+      const species = (line ? resolveSpeciesForXp(line, current.xp) : null)
+        ?? (line ? babySpeciesOf(line) : 'egg2')
+
+      await supabase
+        .from('digimons')
+        .update({ evolution_line_id: lineId, species })
+        .eq('id', current.id)
       await refresh()
     }
 
@@ -214,7 +255,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       // onAuthStateChange cuida de voltar para 'anonymous'.
     }
 
-    return { state, signInWithGitHub, giveConsent, createDigimon, signOut, refresh }
+    return { state, signInWithGitHub, giveConsent, createDigimon, chooseStarterLine, signOut, refresh }
   }, [state])
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>
