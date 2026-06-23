@@ -1,7 +1,8 @@
 import { useEffect } from 'react'
-import { ActivityIndicator, View } from 'react-native'
+import { ActivityIndicator, Platform, View } from 'react-native'
 import { Stack } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
+import { NavigationBar } from 'expo-navigation-bar'
 import { SessionProvider, useSession } from '@/lib/session/SessionProvider'
 import { registerForPushNotifications } from '@/lib/notifications/register'
 
@@ -60,6 +61,13 @@ function RootNavigator() {
 }
 
 export default function RootLayout() {
+  // Esconde a barra de navegação do Android (modo tela cheia/imersivo). O config
+  // plugin já nasce escondida no build; esta chamada garante em runtime (e cobre
+  // o Expo Go, onde o plugin não roda). Android-only — no-op em web/iOS.
+  useEffect(() => {
+    if (Platform.OS === 'android') NavigationBar.setHidden(true)
+  }, [])
+
   return (
     <SessionProvider>
       <StatusBar style="light" />

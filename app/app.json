@@ -27,7 +27,8 @@
       "expo-router",
       "expo-status-bar",
       "expo-web-browser",
-      "expo-secure-store"
+      "expo-secure-store",
+      ["expo-navigation-bar", { "hidden": true }]
     ],
     "extra": {
       "router": {},
